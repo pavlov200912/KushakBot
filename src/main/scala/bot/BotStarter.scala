@@ -21,25 +21,26 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
   with Polling
   with Commands[Future]{
 
-  val messages = scala.collection.mutable.Map[String, mutable.MutableList[(String, String)]]().withDefaultValue(mutable.MutableList())
+  val messages = scala.collection.mutable.Map[String, mutable.MutableList[(String, String)]]()
+      .withDefaultValue(mutable.MutableList())
   val registredUsers = mutable.Set[User]()
   onCommand("/start") { implicit msg =>
     //msg.chat.id
     //msg.from
     msg.from match {
-      case None => ()
+      case None => reply("Error").void
       case Some(x) => {
         registredUsers += x
+        reply(s"hi\nyour id: ${x.id}").void
       }
     }
-    reply("hi").void
   }
 
   onCommand("/users") {implicit msg =>
     var answer = ""
     registredUsers.foreach {
       it =>
-        answer += s"${it.firstName} ${unwrapName(it.lastName)}\n"
+        answer += s"${it.firstName} ${it.lastName.getOrElse("")}, id: ${it.id}\n"
     }
     reply(answer).void
   }
@@ -49,7 +50,6 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
       case None => reply("ERROR").void
       case (Some (x)) => withArgs { args =>
 
-        // += (x.id.toString() -> args.seq(1))
         messages(args.seq.head) += (x.id.toString -> args.seq(1))
         reply("Message was sent").void
       }
