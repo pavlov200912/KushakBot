@@ -15,6 +15,7 @@ import scala.collection.mutable
 import scala.collection.mutable.Queue
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.io.Source
 
 class BotStarter(override val client: RequestHandler[Future]) extends TelegramBot
   with Polling
@@ -88,7 +89,10 @@ object BotStarter {
       SttpBackendOptions.Default.socksProxy("ps8yglk.ddns.net", 11999)
     )
 
-    val token = "1032245037:AAFhT3mAz7PYFxOWiAqK7C8lgbF-Yq9D_MM"
+    val filename = "token.txt"
+    val fileSource = Source.fromFile(filename)
+    val token =  fileSource.mkString
+    fileSource.close()
     val bot = new BotStarter(new FutureSttpClient(token))
    Await.result(bot.run(), Duration.Inf)
   }
