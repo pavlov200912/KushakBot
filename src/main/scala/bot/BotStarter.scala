@@ -61,7 +61,7 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
     msg.from match {
       case None => reply("ERROR").void
       case (Some(x)) => messages(x.id.toString()).foreach { pair =>
-        answer += s"Message: ${pair._1} from: ${pair._2} \n"
+        answer += s"Message: ${pair._2} from: ${pair._1} \n"
       }
     }
     reply(answer).void
