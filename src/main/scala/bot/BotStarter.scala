@@ -21,7 +21,7 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
   with Commands[Future]{
 
   val map = scala.collection.mutable.Map[String, List[(Message, String)]]()
-  val registredUsers = mutable.MutableList[User]()
+  val registredUsers = mutable.Set[User]()
   onCommand("/start") { implicit msg =>
     //msg.chat.id
     //msg.from
@@ -39,7 +39,7 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
     var answer = ""
     registredUsers.foreach {
       it =>
-        answer += s"${it.firstName} ${it.lastName}\n"
+        answer += s"${it.firstName} ${unwrapName(it.lastName)}\n"
     }
     reply(answer).void
   }
