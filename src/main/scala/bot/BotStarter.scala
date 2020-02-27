@@ -45,14 +45,25 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
 
   onCommand("/send") { implicit msg =>
     msg.from match {
-      case None => reply("bbb").void
+      case None => reply("ERROR").void
       case (Some (x)) => withArgs { args =>
 
         // += (x.id.toString() -> args.seq(1))
         messages(args.seq.head) += (x.id.toString -> args.seq(1))
-        reply((args.seq(0)).mkString).void
+        reply("Message was sent").void
       }
     }
+  }
+
+  onCommand("/check") { implicit msg =>
+    var answer = ""
+    msg.from match {
+      case None => reply("ERROR").void
+      case (Some(x)) => messages(x.id.toString()).foreach { pair =>
+        answer += s"Message: ${pair._1} from: ${pair._2} \n"
+      }
+    }
+    reply(answer).void
   }
 
   def unwrapName(option: Option[String]) = option match {
