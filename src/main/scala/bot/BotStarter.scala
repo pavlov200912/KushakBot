@@ -11,6 +11,7 @@ import com.softwaremill.sttp.SttpBackendOptions
 import com.softwaremill.sttp.okhttp.{OkHttpBackend, OkHttpFutureBackend}
 import slogging.{LogLevel, LoggerConfig, PrintLoggerFactory}
 
+import scala.collection.mutable
 import scala.collection.mutable.Queue
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -20,19 +21,34 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
   with Commands[Future]{
 
   val map = scala.collection.mutable.Map[String, List[(Message, String)]]()
-
+  val registredUsers = mutable.MutableList[User]()
   onCommand("/start") { implicit msg =>
     //msg.chat.id
     //msg.from
-    val userId = msg.from match {
-      case None => ""
-      case Some(x) => x.id.toString
+    msg.from match {
+      case None => ()
+      case Some(x) => {
+        registredUsers += x
+        map(x.id.toString) = List()
+      }
     }
-    map(userId) = List()
     reply("hi").void
-
   }
 
+  onCommand("/users") {implicit msg =>
+    var answer = ""
+    registredUsers.foreach {
+      it =>
+        answer += s"${it.firstName} ${it.lastName}\n"
+    }
+    reply(answer).void
+  }
+
+  onCommand("/send") { implicit msg =>
+    withArgs { args =>
+      reply(args.mkString(" ")).void
+    }
+  }
 
   def unwrapName(option: Option[String]) = option match {
     case None => ""
