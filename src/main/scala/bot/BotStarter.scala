@@ -93,6 +93,7 @@ object BotStarter {
     val fileSource = Source.fromFile(filename)
     val token =  fileSource.mkString
     fileSource.close()
+
     val bot = new BotStarter(new FutureSttpClient(token))
    Await.result(bot.run(), Duration.Inf)
   }
