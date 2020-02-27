@@ -88,7 +88,7 @@ object BotStarter {
       SttpBackendOptions.Default.socksProxy("ps8yglk.ddns.net", 11999)
     )
 
-    val token = "1032245037:AAFhT3mAz7PYFxOWiAqK7C8lgbF-Yq9D_MM"
+    val token = "???" // HIDEN INF
     val bot = new BotStarter(new FutureSttpClient(token))
    Await.result(bot.run(), Duration.Inf)
   }
