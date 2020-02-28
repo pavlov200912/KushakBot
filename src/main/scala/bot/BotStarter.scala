@@ -23,14 +23,14 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
 
   val messages = scala.collection.mutable.Map[String, mutable.MutableList[(String, String)]]()
       .withDefaultValue(mutable.MutableList())
-  val registredUsers = mutable.Set[User]()
+  val registeredUsers = mutable.Set[User]()
   onCommand("/start") { implicit msg =>
     //msg.chat.id
     //msg.from
     msg.from match {
       case None => reply("Error").void
       case Some(x) => {
-        registredUsers += x
+        registeredUsers += x
         reply(s"hi\nyour id: ${x.id}").void
       }
     }
@@ -38,7 +38,7 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
 
   onCommand("/users") {implicit msg =>
     var answer = ""
-    registredUsers.foreach {
+    registeredUsers.foreach {
       it =>
         answer += s"${it.firstName} ${it.lastName.getOrElse("")}, id: ${it.id}\n"
     }
@@ -49,8 +49,11 @@ class BotStarter(override val client: RequestHandler[Future]) extends TelegramBo
     msg.from match {
       case None => reply("ERROR").void
       case (Some (x)) => withArgs { args =>
-
-        messages(args.seq.head) += (x.id.toString -> args.tail.seq.foldLeft("")((acc, word) => acc + word + " "))
+        val id = args.head
+        if (!messages.contains(id)) {
+          messages(args.seq.head) = mutable.MutableList()
+        }
+        messages(args.head) += (x.id.toString -> args.tail.foldLeft("")((acc, word) => acc + word + " "))
         reply("Message was sent").void
       }
     }
