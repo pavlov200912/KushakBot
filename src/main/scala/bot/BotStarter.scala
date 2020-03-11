@@ -18,6 +18,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.io.Source
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.json4s._
+import kotlin.collections.EmptyList
 import org.json4s.native.Serialization
 
 import scala.util.Random
@@ -65,13 +66,16 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
   }
 
   onCommand("/check") { implicit msg =>
-    val answer = msg.from match {
+    val res = msg.from match {
       case None => "ERROR"
-      case (Some(x)) => messages(x.id.toString).foldLeft("") {(acc, pair) =>
-        acc + s"Message: ${pair._2} from: ${pair._1} \n"
-      }
+      case (Some(x)) =>
+        val answer = messages(x.id.toString).foldLeft("") {(acc, pair) =>
+          acc + s"Message: ${pair._2} from: ${pair._1} \n"
+        }
+        messages(x.id.toString) = mutable.MutableList()
+        answer
     }
-    reply(answer).void
+    reply(res).void
   }
 
   def unwrapName(option: Option[String]): String = option match {
