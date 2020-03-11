@@ -1,6 +1,5 @@
 package bot
 
-import bot.BotStarter.Service
 import cats.instances.future._
 import cats.syntax.functor._
 import com.bot4s.telegram.api.RequestHandler
@@ -21,7 +20,7 @@ import com.softwaremill.sttp._
 import com.softwaremill.sttp.json4s._
 import org.json4s.native.Serialization
 
-import scala.util.{Failure, Success}
+import scala.util.Random
 
 class BotStarter(override val client: RequestHandler[Future], val service: Service) extends TelegramBot
   with Polling
@@ -66,11 +65,10 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
   }
 
   onCommand("/check") { implicit msg =>
-    var answer = ""
-    msg.from match {
-      case None => reply("ERROR").void
-      case (Some(x)) => messages(x.id.toString).foreach { pair =>
-        answer += s"Message: ${pair._2} from: ${pair._1} \n"
+    val answer = msg.from match {
+      case None => "ERROR"
+      case (Some(x)) => messages(x.id.toString).foldLeft("") {(acc, pair) =>
+        acc + s"Message: ${pair._2} from: ${pair._1} \n"
       }
     }
     reply(answer).void
@@ -96,28 +94,6 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
 
 
 object BotStarter {
-
-  implicit val serialization: Serialization.type = org.json4s.native.Serialization
-
-  case class Response(data: List[Data])
-  case class Data(link: String)
-
-  class Service(implicit val backend: SttpBackend[Future, Nothing]) {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    val request: RequestT[Id, Response, Nothing] = sttp
-      .header("Authorization", "Client-ID 20ff243e5fe83b7")
-      .get(uri"https://api.imgur.com/3/gallery/search?q=cats")
-      .response(asJson[Response])
-
-    def getCat(): Future[String] = {
-      backend.send(request).map {
-            // TODO: random item
-        response => scala.util.Random.shuffle(response.unsafeBody.data).head.link
-      }
-    }
-
-  }
-
   def main(args: Array[String]): Unit = {
     // Рулит потоками
     implicit val ec: ExecutionContext = ExecutionContext.global
