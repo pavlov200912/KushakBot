@@ -1,7 +1,6 @@
 package bot
 
 import com.softwaremill.sttp.{Response, SttpBackend}
-
 import com.softwaremill.sttp.SttpBackend
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -11,14 +10,14 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 
 object RandomMock extends Randomizer {
-  override def randomShuffle(list: List[Any]): Unit = list
+  override def randomShuffle[T](list: List[T]) : List[T] = list
 }
 
 class CatServiceTest extends AnyFlatSpec with Matchers with MockFactory {
   trait  mocks {
     implicit val ec: ExecutionContextExecutor = ExecutionContext.global
     implicit val sttpBackend: SttpBackend[Future, Nothing] = mock[SttpBackend[Future, Nothing]]
-    val randomizer: RandomMock.type = RandomMock
+    implicit val randomizer: RandomMock.type = RandomMock
     val service = new Service()
   }
   "ServiceRest" should "return cat link" in new mocks {
@@ -32,4 +31,8 @@ class CatServiceTest extends AnyFlatSpec with Matchers with MockFactory {
 
     result shouldBe "www.cat.com"
   }
+}
+
+class UserHandlerTest extends AnyFlatSpec {
+
 }

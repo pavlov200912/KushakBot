@@ -11,14 +11,14 @@ case class Data(link: String)
 
 // We need Ranomizer trait for mock
 trait Randomizer {
-  def randomShuffle(list: List[Any])
+  def randomShuffle[T](list: List[T]) : List[T]
 }
 
 class Service(implicit val backend: SttpBackend[Future, Nothing],
               implicit val ec : ExecutionContext = ExecutionContext.global,
               implicit val serialization : Serialization.type = org.json4s.native.Serialization,
               implicit val randomizer: Randomizer = new Randomizer {
-                override def randomShuffle(list: List[Any]): Unit = Random.shuffle(list)
+                override def randomShuffle[T](list: List[T]): List[T] = Random.shuffle(list)
               }) {
   val request: RequestT[Id, Response, Nothing] = sttp
     .header("Authorization", "Client-ID 20ff243e5fe83b7")
@@ -27,7 +27,7 @@ class Service(implicit val backend: SttpBackend[Future, Nothing],
   // something with Json
   def getCat(): Future[String] = {
     backend.send(request).map {
-      response => Random.shuffle(response.unsafeBody.data).head.link
+      response => randomizer.randomShuffle(response.unsafeBody.data).head.link
     }
   }
 }
