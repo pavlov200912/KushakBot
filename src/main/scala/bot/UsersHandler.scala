@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 
 class UsersHandler {
-  val users = mutable.Set[User]()
+  val users: mutable.Set[User] = mutable.Set[User]()
   def showUsers(): String = users.foldLeft(""){
     (acc, user) => acc + s"${user.firstName} ${user.lastName.getOrElse("")}, id: ${user.id}\n"
   }
