@@ -1,9 +1,11 @@
 package bot
 
+import slick.jdbc.H2Profile
+
 import scala.collection.mutable
 import slick.jdbc.H2Profile.api._
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
 
@@ -16,33 +18,42 @@ class Messages(tag: Tag) extends Table[(Int, String, Int, Int)](tag, "MESSAGES")
   def sender_id = column[Int]("SENDER_ID")
   def receiver_id = column[Int]("RECEIVER_ID")
   def * = (id, text, sender_id, receiver_id)
+
+    // TODO: Add foreign keys
+  /*def sender = foreignKey("sender_fk", sender_id,
+    TableQuery[Messages]) (_.id, onDelete=ForeignKeyAction.Cascade)
+
+  def receiver = foreignKey("receiver_fk", receiver_id,
+    TableQuery[Messages]) (_.id, onDelete=ForeignKeyAction.Cascade)*/
 }
 
 
-class MessageDBHandler {
-  val messages = TableQuery[Messages]
-  val db = Database.forConfig("h2mem1")
-  Await.result(db.run(messages.schema.createIfNotExists), Duration.Inf)
+class MessageDBHandler(users: TableQuery[Users], messages: TableQuery[Messages]) {
+  lazy val db : H2Profile.backend.Database = Database.forConfig("h2mem1")
+  def init(): Future[Unit] = {
+    db.run(messages.schema.createIfNotExists)
+  }
 
-  def sendMessage(senderId: String, recieverId: String, message: String): Unit = {
+
+
+  def sendMessage(senderId: String, recieverId: String, message: String): Future[Unit] = {
     val query = for {
       _ <- messages += (-1, message, senderId.toInt, recieverId.toInt)
     } yield()
-    Await.result(db.run(query), Duration.Inf)
+    db.run(query)
   }
 
-  def showMessages(id: String): String = {
+  def showMessages(id: String): Future[String] = {
     val idInt : Int = id.toInt
     val query = for {
       idMessages <- messages.filter(it => it.receiver_id === idInt).result
     } yield idMessages
-    val future = db.run(query)
-    val seqMessages = Await.result(future, Duration.Inf)
-    seqMessages.map(it => s"from: ${it._3} message: ${it._2}").mkString("\n")
+    db.run(query).flatMap(seq => Future(
+      seq.map(it => s"from: ${it._3} message: ${it._2}").mkString("\n"))
+    )
   }
-  def clearMessages(id: String): Unit = {
+  def clearMessages(id: String): Future[Unit] = {
     // Drop all?
-    val future = db.run(messages.delete)
-    Await.result(future, Duration.Inf)
+    db.run(messages.delete).flatMap(_ => Future())
   }
 }

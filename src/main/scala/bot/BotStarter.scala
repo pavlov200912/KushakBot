@@ -20,26 +20,29 @@ import com.softwaremill.sttp._
 import com.softwaremill.sttp.json4s._
 import kotlin.collections.EmptyList
 import org.json4s.native.Serialization
+import slick.jdbc.H2Profile.api._
 
 import scala.util.Random
 
-class BotStarter(override val client: RequestHandler[Future], val service: Service) extends TelegramBot
+
+
+class BotStarter(override val client: RequestHandler[Future], val service: Service,
+                 val usersHandler: UsersDBHandler, val messageHandler: MessageDBHandler) extends TelegramBot
   with Polling
   with Commands[Future]{
 
-  val messageHandler = new MessageDBHandler()
-  val usersHandler = new UsersDBHandler()
   onCommand("/start") { implicit msg =>
+
     msg.from match {
       case None => reply("Error").void
       case Some(x) =>
-        usersHandler.registerUser(x)
-        reply(s"hi\nyour id: ${x.id}").void
+        usersHandler.registerUser(x).flatMap(_ =>
+          reply(s"hi\nyour id: ${x.id}").void)
     }
   }
 
   onCommand("/users") {implicit msg =>
-    reply(usersHandler.showUsers()).void
+    usersHandler.showUsers().flatMap(reply(_).void)
   }
 
   onCommand("/send") { implicit msg =>
@@ -48,21 +51,24 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
       case (Some (x)) => withArgs { args =>
         val id = args.head
         // TODO: Add function sendMessage in MessageHandler class
-        messageHandler.sendMessage(id, x.id.toString, args.tail.foldLeft("")((acc, word) => acc + word + " "))
-        reply("Message was sent").void
+        messageHandler.
+          sendMessage(id, x.id.toString, args.tail.foldLeft("")((acc, word) => acc + word + " ")).
+          flatMap(_ => reply("Message was sent").void)
+
       }
     }
   }
 
   onCommand("/check") { implicit msg =>
-    val res = msg.from match {
-      case None => "ERROR"
+    msg.from match {
+      case None => Future()
       case (Some(x)) =>
-        val ans = messageHandler.showMessages(x.id.toString)
-        messageHandler.clearMessages(x.id.toString)
-        ans
+        messageHandler.showMessages(x.id.toString).flatMap(
+          ans => messageHandler.clearMessages(x.id.toString).flatMap( _ =>
+            reply(ans).void
+          )
+        )
     }
-    reply(res).void
   }
 
   onCommand("/iam") {implicit msg =>
@@ -93,9 +99,19 @@ object BotStarter {
     fileSource.close()
 
     val service: Service = new Service()
-    val bot = new BotStarter(new FutureSttpClient(token), service)
 
-    Await.result(bot.run(), Duration.Inf)
+    val users = TableQuery[Users]
+    val messages = TableQuery[Messages]
+    val usersHandler = new UsersDBHandler(users)
+    val messageHandler = new MessageDBHandler(users, messages)
+    val init = for {
+      _ <- usersHandler.init()
+      _ <- messageHandler.init()
+      bot = new BotStarter(new FutureSttpClient(token), service,
+        usersHandler, messageHandler)
+      _ <- bot.run()
+    } yield ()
+    Await.result(init, Duration.Inf)
   }
 
 }
