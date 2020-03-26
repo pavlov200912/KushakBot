@@ -27,8 +27,8 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
   with Polling
   with Commands[Future]{
 
-  val messageHandler = new MessageHandler()
-  val usersHandler = new UsersHandler()
+  val messageHandler = new MessageDBHandler()
+  val usersHandler = new UsersDBHandler()
   onCommand("/start") { implicit msg =>
     msg.from match {
       case None => reply("Error").void

@@ -24,9 +24,7 @@ class UsersDBHandler {
   val users = TableQuery[Users]
   val db = Database.forConfig("h2mem1")
   Await.result(db.run(users.schema.createIfNotExists), Duration.Inf)
-  /*def showUsers(): String = users.foldLeft(""){
-    (acc, user) => acc + s"${user.firstName} ${user.lastName.getOrElse("")}, id: ${user.id}\n"
-  }*/
+
   def showUsers(): String = {
     val transaction = for {
       all <- users.result
