@@ -22,7 +22,7 @@ class Users(tag: Tag) extends Table[(Int, String, String)](tag, "USERS") {
 
 
 class UsersDBHandler(users: TableQuery[Users]){
-  // TODO: Replace ??? with lateinit?
+
   val db : H2Profile.backend.Database =  Database.forConfig("h2mem1")
   def init(): Future[Unit] = {
     db.run(users.schema.createIfNotExists)
@@ -35,13 +35,10 @@ class UsersDBHandler(users: TableQuery[Users]){
       all <- users.result
     } yield all
     val future: Future[Seq[(Int, String, String)]] = db.run(transaction)
-    val usersSeq = Await.result(future, Duration.Inf)
-    //usersSeq.flatMap(it => s"id: ${it._1} name: ${it._2}").mkString(sep="\n")
     future.flatMap(seq => Future(seq.map(it => s"id: ${it._1} name: ${it._2}").mkString("\n")))
   }
   def registerUser(user: User): Future[Unit] = { //  users += user
     // TODO: remove extra " "
-
     val name = user.firstName + " " + user.lastName.getOrElse("")
     val transaction = for {
       _ <- users += (user.id, name, user.username.getOrElse(""))
