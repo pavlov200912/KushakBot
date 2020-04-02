@@ -20,35 +20,29 @@ import com.softwaremill.sttp._
 import com.softwaremill.sttp.json4s._
 import kotlin.collections.EmptyList
 import org.json4s.native.Serialization
+import slick.jdbc.H2Profile.api._
 
 import scala.util.Random
 
-class BotStarter(override val client: RequestHandler[Future], val service: Service) extends TelegramBot
+
+
+class BotStarter(override val client: RequestHandler[Future], val service: Service,
+                 val usersHandler: UsersDBHandler, val messageHandler: MessageDBHandler) extends TelegramBot
   with Polling
   with Commands[Future]{
 
-  val messages = scala.collection.mutable.Map[String, mutable.MutableList[(String, String)]]()
-    .withDefaultValue(mutable.MutableList())
-  val registeredUsers = mutable.Set[User]()
   onCommand("/start") { implicit msg =>
-    //msg.chat.id
-    //msg.from
+
     msg.from match {
       case None => reply("Error").void
-      case Some(x) => {
-        registeredUsers += x
-        reply(s"hi\nyour id: ${x.id}").void
-      }
+      case Some(x) =>
+        usersHandler.registerUser(x).flatMap(_ =>
+          reply(s"hi\nyour id: ${x.id}").void)
     }
   }
 
   onCommand("/users") {implicit msg =>
-    var answer = ""
-    registeredUsers.foreach {
-      it =>
-        answer += s"${it.firstName} ${it.lastName.getOrElse("")}, id: ${it.id}\n"
-    }
-    reply(answer).void
+    usersHandler.showUsers().flatMap(reply(_).void)
   }
 
   onCommand("/send") { implicit msg =>
@@ -56,37 +50,31 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
       case None => reply("ERROR").void
       case (Some (x)) => withArgs { args =>
         val id = args.head
-        if (!messages.contains(id)) {
-          messages(args.seq.head) = mutable.MutableList()
-        }
-        messages(args.head) += (x.id.toString -> args.tail.foldLeft("")((acc, word) => acc + word + " "))
-        reply("Message was sent").void
+        // TODO: Add function sendMessage in MessageHandler class
+        messageHandler.
+          sendMessage(id, x.id.toString, args.tail.foldLeft("")((acc, word) => acc + word + " ")).
+          flatMap(_ => reply("Message was sent").void)
+
       }
     }
   }
 
   onCommand("/check") { implicit msg =>
-    val res = msg.from match {
-      case None => "ERROR"
+    msg.from match {
+      case None => Future()
       case (Some(x)) =>
-        val answer = messages(x.id.toString).foldLeft("") {(acc, pair) =>
-          acc + s"Message: ${pair._2} from: ${pair._1} \n"
-        }
-        messages(x.id.toString) = mutable.MutableList()
-        answer
+        messageHandler.showMessages(x.id.toString).flatMap(
+          ans => messageHandler.clearMessages(x.id.toString).flatMap( _ =>
+            reply(ans).void
+          )
+        )
     }
-    reply(res).void
-  }
-
-  def unwrapName(option: Option[String]): String = option match {
-    case None => ""
-    case Some(x) => x
   }
 
   onCommand("/iam") {implicit msg =>
     msg.from match {
       case None => reply("I don't know u((").void
-      case Some(x) => reply(s"Hello, ${x.firstName} ${unwrapName(x.lastName)}").void
+      case Some(x) => reply(s"Hello, ${x.firstName} ${x.lastName.getOrElse("")}").void
     }
   }
 
@@ -111,9 +99,19 @@ object BotStarter {
     fileSource.close()
 
     val service: Service = new Service()
-    val bot = new BotStarter(new FutureSttpClient(token), service)
 
-    Await.result(bot.run(), Duration.Inf)
+    val users = TableQuery[Users]
+    val messages = TableQuery[Messages]
+    val usersHandler = new UsersDBHandler(users)
+    val messageHandler = new MessageDBHandler(users, messages)
+    val init = for {
+      _ <- usersHandler.init()
+      _ <- messageHandler.init()
+      bot = new BotStarter(new FutureSttpClient(token), service,
+        usersHandler, messageHandler)
+      _ <- bot.run()
+    } yield ()
+    Await.result(init, Duration.Inf)
   }
 
 }
