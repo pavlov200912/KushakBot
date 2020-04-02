@@ -22,6 +22,14 @@ class Users(tag: Tag) extends Table[(Int, String, String)](tag, "USERS") {
 
 
 class UsersDBHandler(users: TableQuery[Users]){
+  def getUserId(login: String): Future[Int] = {
+    val transaction = for {
+      user <- users.filter(_.login === login).result
+    } yield user
+    val future: Future[Seq[(Int, String, String)]] = db.run(transaction)
+    future.flatMap(seq => Future(seq.map(it => it._1).head))
+  }
+
 
   val db : H2Profile.backend.Database =  Database.forConfig("h2mem1")
   def init(): Future[Unit] = {

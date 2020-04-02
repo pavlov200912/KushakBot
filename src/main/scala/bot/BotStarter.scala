@@ -27,7 +27,8 @@ import scala.util.Random
 
 
 class BotStarter(override val client: RequestHandler[Future], val service: Service,
-                 val usersHandler: UsersDBHandler, val messageHandler: MessageDBHandler) extends TelegramBot
+                 val usersHandler: UsersDBHandler, val messageHandler: MessageDBHandler,
+                 val statsHandler: StatsDBHandler) extends TelegramBot
   with Polling
   with Commands[Future]{
 
@@ -50,7 +51,6 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
       case None => reply("ERROR").void
       case (Some (x)) => withArgs { args =>
         val id = args.head
-        // TODO: Add function sendMessage in MessageHandler class
         messageHandler.
           sendMessage(id, x.id.toString, args.tail.foldLeft("")((acc, word) => acc + word + " ")).
           flatMap(_ => reply("Message was sent").void)
@@ -79,7 +79,34 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
   }
 
   onCommand("/cats") {implicit msg =>
-    service.getCat().flatMap(reply(_)).void
+    msg.from match {
+      case None => reply("ERROR").void
+      case Some(user) =>
+        service.getCat().flatMap(link => for {
+          - <- statsHandler.addCatLink(user.id, link)
+          _ <- reply(link)
+        }yield  ())
+    }
+  }
+
+  onCommand("/stats") {implicit msg =>
+    msg.from match {
+      case None => reply("ERROR").void
+      case (Some (x)) => withArgs { args =>
+        if (args.isEmpty) {
+          statsHandler.showStats(x.id).flatMap(reply(_).void)
+        } else {
+          val arg = args.head
+          if (arg forall Character.isDigit) {
+            // Assuming login can't be only from digits
+            statsHandler.showStats(arg.toInt).flatMap(reply(_).void)
+          } else {
+            usersHandler.getUserId(arg).flatMap( userId =>
+            statsHandler.showStats(userId).flatMap(reply(_).void))
+          }
+        }
+      }
+    }
   }
 
 }
@@ -102,13 +129,16 @@ object BotStarter {
 
     val users = TableQuery[Users]
     val messages = TableQuery[Messages]
+    val stats = TableQuery[Stats]
     val usersHandler = new UsersDBHandler(users)
     val messageHandler = new MessageDBHandler(users, messages)
+    val statsHandler = new StatsDBHandler(stats)
     val init = for {
       _ <- usersHandler.init()
       _ <- messageHandler.init()
+      _ <- statsHandler.init()
       bot = new BotStarter(new FutureSttpClient(token), service,
-        usersHandler, messageHandler)
+        usersHandler, messageHandler, statsHandler)
       _ <- bot.run()
     } yield ()
     Await.result(init, Duration.Inf)
