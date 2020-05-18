@@ -82,10 +82,11 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
     msg.from match {
       case None => reply("ERROR").void
       case Some(user) =>
-        service.getCat().flatMap(link => for {
+        for {
+          link <- service.getCat()
           - <- statsHandler.addCatLink(user.id, link)
           _ <- reply(link)
-        }yield  ())
+        }yield  ()
     }
   }
 
@@ -99,10 +100,16 @@ class BotStarter(override val client: RequestHandler[Future], val service: Servi
           val arg = args.head
           if (arg forall Character.isDigit) {
             // Assuming login can't be only from digits
-            statsHandler.showStats(arg.toInt).flatMap(reply(_).void)
+            for {
+              stats <- statsHandler.showStats(arg.toInt)
+              _     <- reply(stats).void
+            } yield ()
           } else {
-            usersHandler.getUserId(arg).flatMap( userId =>
-            statsHandler.showStats(userId).flatMap(reply(_).void))
+            for {
+              userId <- usersHandler.getUserId(arg)
+              stats  <- statsHandler.showStats(userId)
+              _      <- reply(stats).void
+            } yield ()
           }
         }
       }

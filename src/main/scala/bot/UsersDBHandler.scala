@@ -4,19 +4,17 @@ import com.bot4s.telegram.models.User
 import slick.jdbc.H2Profile
 import slick.jdbc.H2Profile.api._
 
-import scala.collection.mutable
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.Duration
+import scala.concurrent.{Future}
 
-// TODO: Is this OK?
 import scala.concurrent.ExecutionContext.Implicits.global
+
+
 // Definition of the USERS table
 class Users(tag: Tag) extends Table[(Int, String, String)](tag, "USERS") {
   def id = column[Int]("ID", O.PrimaryKey)
   def name = column[String]("NAME")
   def login = column[String]("LOGIN")
   def * = (id, name, login)
-
 }
 
 
@@ -24,10 +22,9 @@ class Users(tag: Tag) extends Table[(Int, String, String)](tag, "USERS") {
 class UsersDBHandler(users: TableQuery[Users]){
   def getUserId(login: String): Future[Int] = {
     val transaction = for {
-      user <- users.filter(_.login === login).result
-    } yield user
-    val future: Future[Seq[(Int, String, String)]] = db.run(transaction)
-    future.flatMap(seq => Future(seq.map(it => it._1).head))
+      id <- users.filter(_.login === login).map(_.id).result.head
+    } yield id
+    db.run(transaction)
   }
 
 

@@ -5,13 +5,14 @@ import slick.jdbc.H2Profile.api._
 
 import scala.concurrent.Future
 
-// TODO: Is this OK?
+case class StatsRow(id: Int, userId: Int, link: String)
+
 import scala.concurrent.ExecutionContext.Implicits.global
-class Stats (tag: Tag) extends Table[(Int, Int, String)](tag, "STATS") {
+class Stats (tag: Tag) extends Table[StatsRow](tag, "STATS") {
   def id = column[Int]("ID", O.PrimaryKey, O.AutoInc)
   def user_id = column[Int]("USER_ID")
   def link = column[String]("LINK")
-  def * = (id, user_id, link)
+  def * = (id, user_id, link) <> (StatsRow.tupled, StatsRow.unapply)
 }
 
 
@@ -27,12 +28,12 @@ class StatsDBHandler(stats: TableQuery[Stats])
     } yield  catStats
     val future = db.run(transaction)
     future.flatMap(seq => Future(
-      seq.map(it => s"link: [${it._3}]").mkString("\n")
+      seq.map(it => s"link: [${it.link}]").mkString("\n")
     ))
   }
   def addCatLink(userId: Int, link: String): Future[Unit] = {
     val query = for {
-      _ <- stats += (-1, userId, link)
+      _ <- stats += StatsRow(-1, userId, link)
     } yield()
     db.run(query)
   }
